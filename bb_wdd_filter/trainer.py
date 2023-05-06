@@ -270,12 +270,19 @@ class Trainer:
 
 
     def run_epochs(self, n):
+        print('Hello 1')
+
         for i in range(n):
+            print('Hello 2')
 
             self.run_epoch()
+            print('Hello 3')
+
             self.total_epochs += 1
 
             if self.save_path is not None:
+                print('Hello 4')
+
                 print("Saving model state after epoch {}..".format(i), flush=True)
                 self.save_state(copy_suffix="_epoch{:03d}".format(self.total_epochs))
 
