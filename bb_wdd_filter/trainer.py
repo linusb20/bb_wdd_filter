@@ -202,42 +202,72 @@ class Trainer:
 
     def run_epoch(self):
 
+        print('1')
         if self.use_wandb:
+            print('2')
             import wandb
 
+
         self.check_init_wandb()
+        print('3')
 
         n_batches = len(self.batch_sampler)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             self.optimizer, self.max_lr, total_steps=n_batches
         )
 
+        print('4')
+
         for _, batch in enumerate(tqdm.auto.tqdm(self.dataloader, leave=False)):
+            print('5')
 
             self.check_scale_augmenters()
+            print('6')
 
             loss_info = self.run_batch(*batch)
+            print('7')
 
             self.total_batches += 1
+            print('8')
 
             if (self.total_batches + 1) % (self.save_every_n_batches + 1) == 0:
+                print('9')
+
                 self.save_at_n_batches()
+                print('10')
 
             if (self.total_batches + 1) % (self.eval_test_set_every_n_batches + 1) == 0:
+                print('11')
                 additional_vars = None
+                print('12')
 
                 if self.use_wandb:
+                    print('13')
                     with torch.no_grad():
+                        print('14')
+
                         additional_vars = self.sample_and_save_embedding()
 
+                print('15')
+
                 if additional_vars is not None:
+                    print('16')
+                    
                     loss_info = {**loss_info, **additional_vars}
 
+            print('17')
             scheduler.step()
 
+            print('18')
+
             if self.use_wandb:
+                print('19')
+
                 loss_info["learning_rate"] = scheduler._last_lr
+                print('20')
                 wandb.log(loss_info)
+                print('21')
+
 
     def run_epochs(self, n):
         for i in range(n):
