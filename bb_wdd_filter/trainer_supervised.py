@@ -14,8 +14,11 @@ from .models_supervised import SupervisedModelTrainWrapper
 
 class SupervisedTrainer(Trainer):
     def __init__(self, dataset, model, *args, batch_sampler_kwargs=dict(), **kwargs):
+        print("SupervisedTrainer:init 1")
 
         model = SupervisedModelTrainWrapper(model)
+        print("SupervisedTrainer:init 2")
+
 
         super().__init__(
             dataset,
