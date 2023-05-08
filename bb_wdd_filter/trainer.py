@@ -16,7 +16,7 @@ class Trainer:
         dataset,
         model,
         batch_size=32,
-        use_wandb=None,
+        use_wandb=False,
         wandb_config=dict(),
         save_path="warn",
         save_every_n_batches=None,
