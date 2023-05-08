@@ -31,6 +31,8 @@ class Trainer:
         batches_to_reach_maximum_augmentation=2000,
         run_batch_fn=None,
     ):
+        
+        print(f"Trainer(): use_wandb {self.use_wandb}")
         def init_worker(ID):
 
             import torch
