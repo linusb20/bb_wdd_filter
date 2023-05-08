@@ -32,7 +32,6 @@ class Trainer:
         run_batch_fn=None,
     ):
         
-        print(f"Trainer(): use_wandb {self.use_wandb}")
         def init_worker(ID):
 
             import torch
