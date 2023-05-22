@@ -26,6 +26,10 @@ class WDDDataset(Dataset):
     def __getitem__(self, i):
         images, vector, duration = WDDDataset.load_waggle_metadata(self.meta_data_paths[i])
         label = self.Y[i]
+        crop_size = 80  # smallest sequence length is 95
+        crop_start = (len(images)//2) - (crop_size//2)
+        crop_end = (len(images)//2) + (crop_size//2)
+        images = images[crop_start:crop_end, :, :]
         images = np.expand_dims(images, axis=0)
 
         return images, vector, duration, label
@@ -48,6 +52,7 @@ class WDDDataset(Dataset):
                 for fn in image_fns:
                     with zf.open(fn, "r") as f:
                         images.append(WDDDataset.load_image(f))
+        images = np.asarray(images)
         with open(waggle_path, "r") as f:
             metadata = json.load(f)
         waggle_angle = metadata["waggle_angle"]
