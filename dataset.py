@@ -4,6 +4,7 @@ import pandas
 import PIL.Image
 import zipfile
 import json
+import skimage.transform as transform
 from torch.utils.data import Dataset
 
 class WDDDataset(Dataset):
@@ -37,7 +38,9 @@ class WDDDataset(Dataset):
     @staticmethod
     def load_image(f):
         img = PIL.Image.open(f)
-        img = np.asarray(img)
+        img = np.asarray(img, dtype=np.float32)
+        img = img / 255 * 2 - 1 # normalize to [-1, 1]
+        img = transform.resize(img, (60, 60))
         return img
 
     @staticmethod
