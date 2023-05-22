@@ -10,9 +10,9 @@ PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "groun
 PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
 
 params = {
-    batch_size = 32
-    num_workers = 8
-    num_epochs = 512
+    "batch_size": 32,
+    "num_workers": 8,
+    "num_epochs": 512,
 }
 
 def load_gt_items(path):
@@ -43,6 +43,7 @@ def main():
     dataset = WDDDataset(gt_train_items)
     dataloader = DataLoader(dataset, batch_size=params.batch_size, num_workers=params.num_workers) 
 
+    dataloader = DataLoader(dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
 
 if __name__ == "__main__":
     main()
