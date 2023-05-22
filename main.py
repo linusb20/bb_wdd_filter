@@ -3,17 +3,20 @@ import numpy as np
 import pickle
 import pathlib
 import matplotlib.pyplot as plt
+import torch
 from torch.utils.data import DataLoader
 
 from dataset import WDDDataset
+from model import WDDModel
+from helper import timeit
 
 PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
 PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
 
 params = {
-    "batch_size": 32,
+    "batch_size": 64,
     "num_workers": 8,
-    "num_epochs": 512,
+    "num_epochs": 32,
 }
 
 def load_gt_items(path):
@@ -41,46 +44,36 @@ def main():
 
     gt_train_items = [tuple(item) + (remap(path),) for *item, path in gt_train_items]
 
-    dataset = WDDDataset(gt_train_items)
-    assert len(dataset) == len(train_indices)
+    train_dataset = WDDDataset(gt_train_items)
+    assert len(train_dataset) == len(train_indices)
+    train_dataloader = DataLoader(train_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
 
-    # r = np.random.randint(len(train_indices))
-    # images, vector, duration, label = dataset[r]
-    # print(f"Training example {r}")
-    # print(images.shape, vector, duration, label)
-    # plt.imshow(images[0,1], cmap="gray")
-    # plt.show()
+    model = WDDModel(num_classes=4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-    dataloader = DataLoader(dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
-    for batch_idx, (images, vector, duration, label) in enumerate(dataloader):
-        print(f"Batch Index: {batch_idx}")
-        print("images:")
-        print(type(images))
-        print(images.size())
-        print()
+    for epoch in range(params["num_epochs"]):
+        model.train()
+        for batch_idx, (images, vector, duration, label) in enumerate(train_dataloader):
+            logits = model(images)
+            loss = torch.nn.functional.cross_entropy(logits, label)
+            optimizer.zero_grad()
 
-        print("vector:")
-        print(type(vector))
-        print(vector.size())
-        print(vector)
-        print()
+            loss.backward()
+            optimizer.step()
+            print(f"Epoch {epoch} Batch: {batch_idx}")
+            print(f"Loss: {loss:.4f}")
 
-        print("duration:")
-        print(type(duration))
-        print(duration.size())
-        print(duration)
-        print()
-
-        print("label")
-        print(type(label))
-        print(label.size())
-        print(label)
-        print()
-
-        plt.imshow(images[0,0,0], cmap="gray")
-        plt.show()
-
-        break
+        model.eval()
+        with torch.no_grad():
+            correct, num_examples = 0, 0
+            for i, (images, vector, duration, label) in enumerate(train_dataloader):
+                logits = model(images)
+                _, predicted = torch.max(logits, 1)
+                num_examples += logits.size(0) # batch size
+                correct += (predicted == label).sum()
+            acc = correct / num_examples * 100
+            print(f"Epoch {epoch}")
+            print(f"Accuracy: {acc:.2f}%")
 
 if __name__ == "__main__":
     main()
