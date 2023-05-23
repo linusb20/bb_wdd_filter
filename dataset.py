@@ -40,7 +40,7 @@ class WDDDataset(Dataset):
         img = PIL.Image.open(f)
         img = np.asarray(img, dtype=np.float32)
         img = img / 255 * 2 - 1 # normalize to [-1, 1]
-        img = transform.resize(img, (60, 60))
+        img = transform.resize(img, (110, 110))
         return img
 
     @staticmethod

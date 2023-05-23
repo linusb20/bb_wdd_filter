@@ -13,6 +13,8 @@ from helper import timeit
 PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
 PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 params = {
     "batch_size": 64,
     "num_workers": 4,
@@ -70,11 +72,17 @@ def main():
     test_dataloader = DataLoader(test_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
 
     model = WDDModel(num_classes=4)
+    model = model.to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     for epoch in range(params["num_epochs"]):
         model.train()
         for batch_idx, (images, vector, duration, label) in enumerate(train_dataloader):
+            images = images.to(DEVICE)
+            vector = vector.to(DEVICE)
+            duration = duration.to(DEVICE)
+            label = label.to(DEVICE)
+
             logits = model(images)
             loss = torch.nn.functional.cross_entropy(logits, label)
             optimizer.zero_grad()
