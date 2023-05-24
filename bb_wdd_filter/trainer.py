@@ -39,8 +39,8 @@ class Trainer:
 
             np.random.seed(torch.initial_seed() % 2 ** 32)
 
+            # TODO JOEL:  rauswerfen
             import imgaug
-
             imgaug.seed((torch.initial_seed() + 1) % 2 ** 32)
 
         self.dataset = dataset

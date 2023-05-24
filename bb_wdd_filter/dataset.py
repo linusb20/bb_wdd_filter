@@ -351,6 +351,7 @@ class BatchSampler:
         # p = 0.0
 
         # These are applied to each image individually and must not rotate e.g. the images.
+        # TODO JOEL: Das kann man rauswerfen (verrauschen)
         self.quality_augmenters = iaa.Sequential(
             [
                 iaa.Sometimes(0.55 * p, iaa.GammaContrast((0.9, 1.1))),
@@ -360,6 +361,7 @@ class BatchSampler:
                 iaa.Sometimes(0.25 * p, iaa.Add(value=(-5, 5))),
             ]
         )
+        # TODO JOEL: ersetzen, da Skalierung nicht RGB sondern 0-1
         self.rescale = iaa.Sequential(
             [
                 # Scale to range -1, +1
@@ -371,18 +373,22 @@ class BatchSampler:
         # These are sampled for each batch and applied to all images.
         self.augmenters = iaa.Sequential(
             [
+                 # TODO JOEL: Das kann man rauswerfen (verzerren)
                 iaa.Affine(
                     translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
                     rotate=0.0,
                     shear=(-5, 5),
                     scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                 ),
+                # TODO JOEL: ersetzen
                 iaa.CropToFixedSize(
                     self.image_size * int(1.0 / self.image_scale_factor),
                     self.image_size * int(1.0 / self.image_scale_factor),
                     position="center",
                 ),
+                # TODO JOEL: ersetzen
                 iaa.Resize(self.image_scale_factor),
+                # TODO JOEL: rauswerfen (schwarzer rahmen am Rand hinzugefuegt)
                 iaa.Sometimes(
                     0.25 * p,
                     iaa.Sequential(
