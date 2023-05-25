@@ -70,11 +70,11 @@ def main():
 
     train_dataset = WDDDataset(gt_train_items)
     assert len(train_dataset) == len(train_indices)
-    train_dataloader = DataLoader(train_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
+    train_dataloader = DataLoader(train_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"], shuffle=True) 
 
     test_dataset = WDDDataset(gt_test_items)
     assert len(test_dataset) == len(test_indices)
-    test_dataloader = DataLoader(test_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"]) 
+    test_dataloader = DataLoader(test_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"], shuffle=True) 
 
     model = WDDModel(num_classes=4)
     model = model.to(DEVICE)
