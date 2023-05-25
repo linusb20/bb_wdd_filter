@@ -10,8 +10,11 @@ from dataset import WDDDataset
 from model import WDDModel
 from helper import timeit
 
-PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
-PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
+# PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
+# PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
+
+PATH_PICKLE = os.path.join(os.sep, "srv", "data", "joeh97", "data", "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
+PATH_IMAGES = os.path.join(os.sep, "srv", "data", "joeh97", "data", "wdd_ground_truth")
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -30,6 +33,8 @@ def load_gt_items(path):
 def compute_accuracy(model, dataloader):
     correct, num_examples = 0, 0
     for i, (images, vector, duration, label) in enumerate(dataloader):
+        images = images.to(DEVICE)
+        label = label.to(DEVICE)
         logits = model(images)
         _, predicted = torch.max(logits, 1)
         num_examples += logits.size(0) # batch size
