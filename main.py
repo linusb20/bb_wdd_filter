@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pickle
+import json
 import pathlib
 import matplotlib.pyplot as plt
 import torch
@@ -49,6 +50,24 @@ def playback(images):
         plt.title(f"Image {i+1}")
         plt.pause(0.1)
 
+def plot_accuracy(train_acc_list, test_acc_list, save_path):
+    x = np.arange(1, len(train_acc_list) + 1)
+    fig, ax = plt.subplots()
+    ax.plot(x, train_acc_list, label="Training")
+    ax.plot(x, test_acc_list, label="Testing")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy")
+    ax.legend()
+    fig.savefig(save_path)
+
+def plot_loss(loss_mean_list, loss_std_list, save_path):
+    x = np.arange(1, len(loss_mean_list) + 1)
+    fig, ax = plt.subplots()
+    ax.errorbar(x, loss_mean_list, loss_std_list)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Mean Loss")
+    fig.savefig(save_path)
+
 def main():
     gt_items = load_gt_items(PATH_PICKLE) 
     def remap(p):
@@ -80,7 +99,15 @@ def main():
     model = model.to(DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
+    stats = {
+        "train_acc_list": [],
+        "test_acc_list": [],
+        "loss_mean_list": [],
+        "loss_std_list": [],
+    }
+
     for epoch in range(params["num_epochs"]):
+        loss_list = []
         model.train()
         for batch_idx, (images, vector, duration, label) in enumerate(train_dataloader):
             images = images.to(DEVICE)
@@ -94,8 +121,12 @@ def main():
 
             loss.backward()
             optimizer.step()
+
             print(f"Epoch {epoch} Batch: {batch_idx}")
             print(f"Loss: {loss:.4f}")
+            loss_list.append(loss.item())
+        stats["loss_mean_list"].append(np.mean(loss_list))
+        stats["loss_std_list"].append(np.std(loss_list))
 
         model.eval()
         with torch.no_grad():
@@ -104,6 +135,13 @@ def main():
             print(f"Epoch {epoch}")
             print(f"Training Accuracy: {train_acc:.2f}%")
             print(f"Testing Accuracy: {test_acc:.2f}%")
+            stats["train_acc_list"].append(train_acc.item())
+            stats["test_acc_list"].append(test_acc.item())
+
+    plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], "accuracy.pdf")
+    plot_loss(stats["loss_mean_list"], stats["loss_std_list"], "loss.pdf")
+    with open("stats.json", "w") as f:
+        json.dump(stats, f)
 
 
 if __name__ == "__main__":
