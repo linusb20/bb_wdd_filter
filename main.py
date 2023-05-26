@@ -1,4 +1,5 @@
 import os
+import datetime
 import numpy as np
 import pickle
 import json
@@ -138,9 +139,15 @@ def main():
             stats["train_acc_list"].append(train_acc.item())
             stats["test_acc_list"].append(test_acc.item())
 
-    plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], "accuracy.pdf")
-    plot_loss(stats["loss_mean_list"], stats["loss_std_list"], "loss.pdf")
-    with open("stats.json", "w") as f:
+    stats_path = os.path.join(os.getcwd(), "stats_" + datetime.datetime.now().strftime("%Y%m%dT%H%M"))
+    os.makedirs(stats_path)
+    save_path_accuracy = os.path.join(stats_path, "accuracy.pdf")
+    save_path_loss = os.path.join(stats_path, "loss.pdf")
+    save_path_json = os.path.join(stats_path, "stats.json")
+
+    plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], save_path_accuracy)
+    plot_loss(stats["loss_mean_list"], stats["loss_std_list"], save_path_loss)
+    with open(save_path_json, "w") as f:
         json.dump(stats, f)
 
 
