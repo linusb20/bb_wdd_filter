@@ -27,12 +27,10 @@ class WDDDataset(Dataset):
     def __getitem__(self, i):
         images, vector, duration = WDDDataset.load_waggle_metadata(self.meta_data_paths[i])
         label = self.Y[i]
-        crop_size = 80  # smallest sequence length is 95
-        crop_start = (len(images)//2) - (crop_size//2)
-        crop_end = (len(images)//2) + (crop_size//2)
-        images = images[crop_start:crop_end, :, :]
+        target_size = 180
+        pad = np.full((target_size - len(images),) + images.shape[1:], -1, dtype=images.dtype) 
+        images = np.concatenate((images, pad))
         images = np.expand_dims(images, axis=0)
-
         return images, vector, duration, label
 
     @staticmethod
