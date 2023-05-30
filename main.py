@@ -7,6 +7,7 @@ import pathlib
 import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix
 
 from dataset import WDDDataset
 from model import WDDModel
@@ -43,6 +44,18 @@ def compute_accuracy(model, dataloader):
         correct += (predicted == label).sum()
     return correct / num_examples * 100
 
+
+def compute_confusion_matrix(model, dataloader):
+    predicted_list, actual_list = [], []
+    for i, (images, vector, duration, label) in enumerate(dataloader):
+        images = images.to(DEVICE)
+        label = label.to(DEVICE)
+        logits = model(images)
+        _, predicted = torch.max(logits, 1)
+        predicted_list.extend(predicted.to("cpu"))
+        actual_list.extend(label.to("cpu"))
+    return confusion_matrix(actual_list, predicted_list)
+
 def playback(images):
     for i, img in enumerate(images):
         plt.figure(1)
@@ -67,6 +80,20 @@ def plot_loss(loss_mean_list, loss_std_list, save_path):
     ax.errorbar(x, loss_mean_list, loss_std_list)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Mean Loss")
+    fig.savefig(save_path)
+
+def plot_confusion_matrix(cm, labels, save_path):
+    fig, ax = plt.subplots()
+    ax.matshow(cm, cmap=plt.cm.Blues, alpha=0.3)
+    ax.set_xlabel("Predcitions")
+    ax.set_ylabel("Actuals")
+    ax.set_title("Confusion Matrix")
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(x=j, y=i,s=cm[i, j], va='center', ha='center')
+    ticks = np.arange(len(labels))
+    ax.set_xticks(ticks, labels)
+    ax.set_yticks(ticks, labels)
     fig.savefig(save_path)
 
 def main():
@@ -139,16 +166,24 @@ def main():
             stats["train_acc_list"].append(train_acc.item())
             stats["test_acc_list"].append(test_acc.item())
 
+    with torch.no_grad():
+        cm = compute_confusion_matrix(model, test_dataloader)
+
     stats_path = os.path.join(os.getcwd(), "stats_" + datetime.datetime.now().strftime("%Y%m%dT%H%M"))
     os.makedirs(stats_path)
     save_path_accuracy = os.path.join(stats_path, "accuracy.pdf")
     save_path_loss = os.path.join(stats_path, "loss.pdf")
+    save_path_confusion = os.path.join(stats_path, "confusion.pdf")
     save_path_json = os.path.join(stats_path, "stats.json")
+    save_path_model_summary = os.path.join(stats_path, "model.txt")
 
     plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], save_path_accuracy)
     plot_loss(stats["loss_mean_list"], stats["loss_std_list"], save_path_loss)
+    plot_confusion_matrix(cm, test_dataset.all_labels, save_path_confusion)
     with open(save_path_json, "w") as f:
         json.dump(stats, f)
+    with open(save_path_model_summary, "w") as f:
+        print(model, file=f)
 
 
 if __name__ == "__main__":
