@@ -1,31 +1,16 @@
 import os
-import datetime
 import numpy as np
 import pickle
 import json
 import pathlib
-import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
-from sklearn.metrics import confusion_matrix
 
+import config as cfg
 from dataset import WDDDataset
 from model import WDDModel
-from helper import timeit
-
-# PATH_PICKLE = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
-# PATH_IMAGES = os.path.join(os.path.dirname(__file__), "wdd_ground_truth", "wdd_ground_truth")
-
-PATH_PICKLE = os.path.join(os.sep, "srv", "data", "joeh97", "data", "wdd_ground_truth", "ground_truth_wdd_angles.pickle")
-PATH_IMAGES = os.path.join(os.sep, "srv", "data", "joeh97", "data", "wdd_ground_truth")
-
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-params = {
-    "batch_size": 64,
-    "num_workers": 4,
-    "num_epochs": 32,
-}
+from evaluation import compute_accuracy, compute_confusion_matrix
+from plotting import plot_accuracy, plot_loss, plot_confusion_matrix
 
 def load_gt_items(path):
     with open(path, "rb") as f:
@@ -33,73 +18,10 @@ def load_gt_items(path):
         items = [(key,) + v for key, v in r.items()]
     return items
 
-def compute_accuracy(model, dataloader):
-    correct, num_examples = 0, 0
-    for i, (images, vector, duration, label) in enumerate(dataloader):
-        images = images.to(DEVICE)
-        label = label.to(DEVICE)
-        logits = model(images)
-        _, predicted = torch.max(logits, 1)
-        num_examples += logits.size(0) # batch size
-        correct += (predicted == label).sum()
-    return correct / num_examples * 100
-
-
-def compute_confusion_matrix(model, dataloader):
-    predicted_list, actual_list = [], []
-    for i, (images, vector, duration, label) in enumerate(dataloader):
-        images = images.to(DEVICE)
-        label = label.to(DEVICE)
-        logits = model(images)
-        _, predicted = torch.max(logits, 1)
-        predicted_list.extend(predicted.to("cpu"))
-        actual_list.extend(label.to("cpu"))
-    return confusion_matrix(actual_list, predicted_list)
-
-def playback(images):
-    for i, img in enumerate(images):
-        plt.figure(1)
-        plt.clf()
-        plt.imshow(img, cmap="gray")
-        plt.title(f"Image {i+1}")
-        plt.pause(0.1)
-
-def plot_accuracy(train_acc_list, test_acc_list, save_path):
-    x = np.arange(1, len(train_acc_list) + 1)
-    fig, ax = plt.subplots()
-    ax.plot(x, train_acc_list, label="Training")
-    ax.plot(x, test_acc_list, label="Testing")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Accuracy")
-    ax.legend()
-    fig.savefig(save_path)
-
-def plot_loss(loss_mean_list, loss_std_list, save_path):
-    x = np.arange(1, len(loss_mean_list) + 1)
-    fig, ax = plt.subplots()
-    ax.errorbar(x, loss_mean_list, loss_std_list)
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Mean Loss")
-    fig.savefig(save_path)
-
-def plot_confusion_matrix(cm, labels, save_path):
-    fig, ax = plt.subplots()
-    ax.matshow(cm, cmap=plt.cm.Blues, alpha=0.3)
-    ax.set_xlabel("Predcitions")
-    ax.set_ylabel("Actuals")
-    ax.set_title("Confusion Matrix")
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            ax.text(x=j, y=i,s=cm[i, j], va='center', ha='center')
-    ticks = np.arange(len(labels))
-    ax.set_xticks(ticks, labels)
-    ax.set_yticks(ticks, labels)
-    fig.savefig(save_path)
-
 def main():
-    gt_items = load_gt_items(PATH_PICKLE) 
+    gt_items = load_gt_items(cfg.PATH_PICKLE) 
     def remap(p):
-        head = pathlib.Path(PATH_IMAGES)
+        head = pathlib.Path(cfg.PATH_IMAGES)
         tail = p.relative_to("/mnt/curta/storage/beesbook/wdd/")
         return head.joinpath(tail)
     gt_items = [tuple(item) + (remap(path),) for *item, path in gt_items]
@@ -117,14 +39,14 @@ def main():
 
     train_dataset = WDDDataset(gt_train_items)
     assert len(train_dataset) == len(train_indices)
-    train_dataloader = DataLoader(train_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"], shuffle=True) 
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, num_workers=cfg.NUM_WORKERS, shuffle=True) 
 
     test_dataset = WDDDataset(gt_test_items)
     assert len(test_dataset) == len(test_indices)
-    test_dataloader = DataLoader(test_dataset, batch_size=params["batch_size"], num_workers=params["num_workers"], shuffle=True) 
+    test_dataloader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, num_workers=cfg.NUM_WORKERS, shuffle=True) 
 
     model = WDDModel(num_classes=4)
-    model = model.to(DEVICE)
+    model = model.to(cfg.DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     stats = {
@@ -134,14 +56,14 @@ def main():
         "loss_std_list": [],
     }
 
-    for epoch in range(params["num_epochs"]):
+    for epoch in range(cfg.NUM_EPOCHS):
         loss_list = []
         model.train()
         for batch_idx, (images, vector, duration, label) in enumerate(train_dataloader):
-            images = images.to(DEVICE)
-            vector = vector.to(DEVICE)
-            duration = duration.to(DEVICE)
-            label = label.to(DEVICE)
+            images = images.to(cfg.DEVICE)
+            vector = vector.to(cfg.DEVICE)
+            duration = duration.to(cfg.DEVICE)
+            label = label.to(cfg.DEVICE)
 
             logits = model(images)
             loss = torch.nn.functional.cross_entropy(logits, label)
@@ -169,20 +91,13 @@ def main():
     with torch.no_grad():
         cm = compute_confusion_matrix(model, test_dataloader)
 
-    stats_path = os.path.join(os.getcwd(), "stats_" + datetime.datetime.now().strftime("%Y%m%dT%H%M"))
-    os.makedirs(stats_path)
-    save_path_accuracy = os.path.join(stats_path, "accuracy.pdf")
-    save_path_loss = os.path.join(stats_path, "loss.pdf")
-    save_path_confusion = os.path.join(stats_path, "confusion.pdf")
-    save_path_json = os.path.join(stats_path, "stats.json")
-    save_path_model_summary = os.path.join(stats_path, "model.txt")
-
-    plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], save_path_accuracy)
-    plot_loss(stats["loss_mean_list"], stats["loss_std_list"], save_path_loss)
-    plot_confusion_matrix(cm, test_dataset.all_labels, save_path_confusion)
-    with open(save_path_json, "w") as f:
+    os.makedirs(cfg.STATS_PATH)
+    plot_accuracy(stats["train_acc_list"], stats["test_acc_list"], cfg.SAVE_PATH_ACCURACY)
+    plot_loss(stats["loss_mean_list"], stats["loss_std_list"], cfg.SAVE_PATH_LOSS)
+    plot_confusion_matrix(cm, test_dataset.all_labels, cfg.SAVE_PATH_CONFUSION)
+    with open(cfg.SAVE_PATH_JSON, "w") as f:
         json.dump(stats, f)
-    with open(save_path_model_summary, "w") as f:
+    with open(cfg.SAVE_PATH_MODEL_SUMMARY, "w") as f:
         print(model, file=f)
 
 
