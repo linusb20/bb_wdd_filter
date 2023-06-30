@@ -31,17 +31,19 @@ class Trainer:
         batches_to_reach_maximum_augmentation=2000,
         run_batch_fn=None,
     ):
+        print("Trainer.__init__()")
         
         def init_worker(ID):
+            print("Trainer.init_worker()")
 
             import torch
             import numpy as np
 
             np.random.seed(torch.initial_seed() % 2 ** 32)
 
-            # TODO JOEL:  rauswerfen
-            import imgaug
-            imgaug.seed((torch.initial_seed() + 1) % 2 ** 32)
+            # TODO JOEL: seed
+           # import albumentations
+           # albumentations.set_seed((torch.initial_seed() + 1) % 2 ** 32)
 
         self.dataset = dataset
         self.batch_sampler = BatchSampler(
@@ -103,9 +105,12 @@ class Trainer:
             self.load_checkpoint()
 
     def is_using_wandb(self):
+        print("Trainer.is_using_wandb()")
+
         return self.use_wandb
     
     def run_batch(self, images, vectors, durations=None, labels=None):
+        print("Trainer.run_batch()")
 
         current_state = dict()
 
@@ -147,6 +152,8 @@ class Trainer:
         return current_state
 
     def check_init_wandb(self):
+        print("Trainer.check_init_wandb()")
+
         if self.use_wandb:
             import wandb
 
@@ -162,6 +169,8 @@ class Trainer:
                 config["optimizer"] = type(self.optimizer).__name__
 
     def check_scale_augmenters(self):
+        print("Trainer.check_scale_augmenters()")
+
         if self.total_batches % 100 == 0:
             # Scale augmentation.
             self.batch_sampler.init_augmenters(
@@ -170,6 +179,8 @@ class Trainer:
             )
 
     def save_at_n_batches(self):
+        print("Trainer.save_at_n_batches()")
+
         if self.save_path is not None:
             tqdm.auto.tqdm.write(
                 "Saving model state at batch {}..".format(self.total_batches)
@@ -177,6 +188,8 @@ class Trainer:
             self.save_state()
 
     def sample_and_save_embedding(self):
+        print("Trainer.sample_and_save_embedding()")
+
         import wandb
 
         self.model.eval()
@@ -202,6 +215,7 @@ class Trainer:
         return loss_info
 
     def run_epoch(self):
+        print("Trainer.run_epoch()")
 
         print('1')
         if self.use_wandb:
@@ -271,7 +285,7 @@ class Trainer:
 
 
     def run_epochs(self, n):
-        print('Hello 1')
+        print("Trainer.run_epochs()")
 
         for i in range(n):
             print('Hello 2')
@@ -288,6 +302,7 @@ class Trainer:
                 self.save_state(copy_suffix="_epoch{:03d}".format(self.total_epochs))
 
     def save_state(self, copy_suffix=None):
+        print("Trainer.save_state()")
 
         model_state_dict = self.model.state_dict()
 
@@ -305,6 +320,8 @@ class Trainer:
             shutil.copy(self.save_path, copy_path)
 
     def load_checkpoint(self):
+        print("Trainer.load_checkpoint()")
+
         print("Loading last checkpoint...")
         state = torch.load(self.save_path)
 
