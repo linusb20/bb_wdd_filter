@@ -25,7 +25,7 @@ class AugmenterAlbumentations:
     def __init__(self) -> None:
         pass
 
-    def augment_video(video:List, augmenters:List):
+    def augment_video(self, video:List, augmenters:List):
         '''
             INPUT:
                 video       list of images
@@ -68,7 +68,7 @@ class ImageNormalizer:
     Image Augmentation: crops and normalizes video  
     '''
     def __init__(self, image_size, scale_factor):
-        print("ImageNormalizer.__init__()")
+        #print("ImageNormalizer.__init__()")
 
         self.image_size = image_size
         self.scale_factor = scale_factor
@@ -84,25 +84,21 @@ class ImageNormalizer:
         self.augmenter = AugmenterAlbumentations()
 
     def crop_images(self, images):
-        print("ImageNormalizer.crop_images()")
+        #print("ImageNormalizer.crop_images()")
 
-        dictoINIT, dictoCALL = get_video_dict(video=images)
-
-        aug_crop = A.Compose([
+        aug_crop = [
                     A.Resize(
                         int(self.image_size * self.scale_factor), 
                         int(self.image_size * self.scale_factor)
                     ),
                     A.CenterCrop(self.image_size, self.image_size),
-                ], 
-                additional_targets=dictoINIT)
-
-        aug_video_dict = aug_crop(image=images[0], **dictoCALL)
-        aug_video = np.array([aug_img.astype(np.float32) for aug_img in aug_video_dict.values()])
+                ]
+        
+        aug_video = self.augmenter.augment_video(video=images, augmenters=aug_crop)
         return aug_video
 
     def floatify_image(self, img):
-        print("ImageNormalizer.floatify_image()")
+        #print("ImageNormalizer.floatify_image()")
 
 
         if not np.issubdtype(img.dtype, np.floating):
@@ -142,7 +138,7 @@ class WDDDataset:
         wdd_angles_for_samples=None,
         default_image_scale=0.5,
     ):
-        print("WDDDataset.__init__()")
+        #print("WDDDataset.__init__()")
 
         self.load_wdd_vectors = load_wdd_vectors
         self.load_wdd_durations = load_wdd_durations
@@ -184,7 +180,7 @@ class WDDDataset:
         
 
     def load_and_normalize_image(self, filename):
-        print("WDDDataset.load_and_normalize_image()")
+        #print("WDDDataset.load_and_normalize_image()")
 
         img = WDDDataset.load_image(filename)
 
@@ -195,8 +191,6 @@ class WDDDataset:
 
     @staticmethod
     def load_image(filename):
-        print("WDDDataset.load_image()")
-
         img = PIL.Image.open(filename)
         img = np.asarray(img)
         assert img.dtype is np.dtype(np.uint8)
@@ -204,18 +198,19 @@ class WDDDataset:
 
     @staticmethod
     def load_images(filenames, parent=""):
-        print("WDDDataset.load_images()")
+        #print("WDDDataset.load_images()")
 
         return [WDDDataset.load_image(os.path.join(parent, f)) for f in filenames]
 
     @staticmethod
     def load_images_from_archive(filenames, archive):
-        print("WDDDataset.load_images_from_archive()")
+        #print("WDDDataset.load_images_from_archive()")
 
         images = []
         for fn in filenames:
             with archive.open(fn, "r") as f:
                 images.append(WDDDataset.load_image(f))
+        print(np.shape(images))
         return images
 
     @staticmethod
@@ -229,7 +224,7 @@ class WDDDataset:
         target_offset=1,
         return_center_images=False,
     ):
-        print("WDDDataset.load_metadata_for_waggle()")
+        #print("WDDDataset.load_metadata_for_waggle()")
 
         waggle_dir = waggle_metadata_path.parent
 
@@ -262,7 +257,7 @@ class WDDDataset:
             assert available_frames_length >= target_sequence_length + sequence_length
 
         def select_images_from_list(images):
-            print("WDDDataset.select_images_from_list()")
+            # print("WDDDataset.select_images_from_list()")
 
             if temporal_dimension is None:
                 if return_center_images:
@@ -354,11 +349,11 @@ class WDDDataset:
         normalize_to_float=False,
         return_center_images=False,
     ):
-        print("WDDDataset.__getitem__()")
+        #print("WDDDataset.__getitem__()")
 
         waggle_metadata_path = self.all_meta_files[i]
 
-        images, waggle_angle, waggle_duration = WDDDataset.load_metadata_for_waggle(
+        images, waggle_angle, waggle_duration = WDDDataset.load_metadata_for_waggle( 
             waggle_metadata_path,
             self.temporal_dimension,
             images_in_archives=self.images_in_archives,
@@ -421,7 +416,12 @@ class BatchSampler:
         self.image_scale_factor = image_scale_factor
         self.augmentation_per_image = augmentation_per_image
 
+
+        self.augmenter = AugmenterAlbumentations()
         self.augmenters = None
+        self.quality_augmenters = None 
+        self.rescale = None
+
         self.image_size = image_size
 
     def init_augmenters(self, current_epoch=1, total_epochs=1):
@@ -432,21 +432,21 @@ class BatchSampler:
         )
         
         # These are applied to each image individually and must not rotate e.g. the images.
-        self.quality_augmenters = A.Compose([
+        self.quality_augmenters = [
             A.MultiplicativeNoise(p=0.25 * p, multiplier=(0.9, 1.1), elementwise=True),
             A.GaussNoise(p=0.5 * p, var_limit=(0, 0.1)),
             A.GaussianBlur(p=0.25 * p, sigma_limit=(0.0, 0.5)),
             A.RandomBrightnessContrast(
                     p=0.5 * p, brightness_limit=(-0.5, 0.5), contrast_limit=(-0.5, 0.5)),
-        ])
+        ]
 
-        self.rescale = A.Compose([
+        self.rescale = [
             # rescale from RGB to 0-1
             A.Normalize(mean=0, std=255)
-        ])
+        ]
 
         # These are sampled for each batch and applied to all images.
-        self.augmenters = A.Compose([
+        self.augmenters = [
                 A.Affine(
                     translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
                     rotate=0.0,
@@ -464,10 +464,10 @@ class BatchSampler:
                     always_apply=True,
                 ),
                 A.Resize(
-                    height=int(self.image_scale_factor),
-                    width=int(self.image_scale_factor),
-                    p=1.0,
-                ),              
+                    height=int(32 * self.image_scale_factor),
+                    width=int(32 * self.image_scale_factor),
+                    p=1,
+                ),  
                 A.Compose(
                     p= 0.25 * p,
                     transforms=[
@@ -485,7 +485,7 @@ class BatchSampler:
                         position="center",
                     ),
                 ]),
-        ])
+        ]
 
         #self.augmenters = A.Compose([
         #    A.CenterCrop(height=128, width=128),
@@ -494,53 +494,31 @@ class BatchSampler:
 
 
     def __len__(self):
-        print("BatchSampler.__len__()")
+        #print("BatchSampler.__len__()")
 
         return (self.total_length * self.inflate_dataset_factor) // self.batch_size
 
     def __getitem__(self, _):
-        print("BatchSampler.__getitem__()")
+        #print("BatchSampler.__getitem__()")
 
         if self.augmenters is None:
             self.init_augmenters()
 
-        # aug = self.augmenters.to_deterministic() # TODO JOEL (done)
-        aug = self.augmenters 
-
-        def augment_fnJOEL(images, *args):
-            print("BatchSampler.augment_fnJOEL()")
-
-            nonlocal aug
-            print("BatchSampler.augment_fnJOEL() A")
-
-            images = self.quality_augmenters(image=np.array(images))
-            print("BatchSampler.augment_fnJOEL() B")
-
-            images = self.rescale(image= np.array(images))
-            print("BatchSampler.augment_fnJOEL() C")
-
-            images, angles = BatchSampler.augment_sequence(aug, images, *args)
-            print("BatchSampler.augment_fnJOEL() d")
-
-            return images, angles
-
-
         def augment_fn(images, *args):
-            print("BatchSampler.augment_fn()")
+            #print("BatchSampler.augment_fn()")
 
-            nonlocal aug
-            img_aug = self.quality_augmenters
-            if not self.augmentation_per_image:
-                # Apply the same augmentation to the whole sequence.
-                # img_aug = img_aug.to_deterministic() # TODO JOEL (done
-                img_aug= img_aug
-
-            images = img_aug(images)
-
-            images = self.rescale(
-                [img.astype(np.float32) for img in images]
+            images = self.augmenter.augment_video(
+                video=images, 
+                augmenters=self.quality_augmenters
             )
-            images, angles = BatchSampler.augment_sequence(aug, images, *args)
+            images = [img.astype(np.float32) for img in images]
+
+            images = self.augmenter.augment_video(
+                video=images,
+                augmenters=self.rescale 
+            )
+
+            images, angles = BatchSampler.augment_sequence(self.augmenters, images, *args)
             return images, angles
 
         samples, angles, durations = [], [], []
@@ -549,7 +527,7 @@ class BatchSampler:
 
         for _ in range(self.batch_size):
             idx = np.random.randint(self.total_length)
-            sample_data = self.dataset.__getitem__(idx, aug=augment_fnJOEL) # TODO JOEL: choose augmentation or NONE
+            sample_data = self.dataset.__getitem__(idx, aug=augment_fn)
             label = None
             if len(sample_data) == 2:
                 images, angle, duration = sample_data
@@ -574,15 +552,18 @@ class BatchSampler:
 
     @classmethod
     def augment_sequence(self, aug, images, angle, rotate=True):
-        print("BatchSampler.augment_sequence()")
+        #print("BatchSampler.augment_sequence()")
+
+        aug = A.Compose(aug)
 
         rotation = np.random.randint(0, 360)
 
         for idx, img in enumerate(images):
             if rotate:
                 img = skimage.transform.rotate(img, rotation)
-            images[idx] = aug(img)
-
+            #print(img.shape)
+            #print(np.min(img), np.max(img))
+            images[idx] = aug(image=img)['image']
         return images, angle + rotation / 180.0 * np.pi
 
 
@@ -597,7 +578,7 @@ class ValidationDatasetEvaluator:
         temporal_dimension=None,
         return_indices=False,
     ):
-        print("ValidationDatasetEvaluator.__init__()")
+        #print("ValidationDatasetEvaluator.__init__()")
 
         if raw_paths is None:
             self.gt_data_df, paths = ValidationDatasetEvaluator.load_ground_truth_data(
@@ -615,11 +596,13 @@ class ValidationDatasetEvaluator:
             silently_skip_invalid=False,
         )
 
+        self.augmenter = AugmenterAlbumentations()
+
         self.return_indices = return_indices
 
     @staticmethod
     def load_ground_truth_data(gt_data_path, remap_paths_to=""):
-        print("ValidationDatasetEvaluator.load_ground_truth_data()")
+        #print("ValidationDatasetEvaluator.load_ground_truth_data()")
 
         if isinstance(gt_data_path, str):
             with open(gt_data_path, "rb") as f:
@@ -645,12 +628,12 @@ class ValidationDatasetEvaluator:
         return gt_data_df, paths
 
     def __len__(self):
-        print("ValidationDatasetEvaluator.__len__()")
+        #print("ValidationDatasetEvaluator.__len__()")
 
         return len(self.dataset)
 
     def __getitem__(self, i):
-        print("ValidationDatasetEvaluator.__getitem__()")
+        #print("ValidationDatasetEvaluator.__getitem__()")
 
         batch_images, vectors, durations = self.dataset.__getitem__(
             i, normalize_to_float=True, return_center_images=True
@@ -668,7 +651,7 @@ class ValidationDatasetEvaluator:
         get_sample_images=True,
         augment_images=False,
     ):
-        print("ValidationDatasetEvaluator.get_images_and_embeddings()")
+        #print("ValidationDatasetEvaluator.get_images_and_embeddings()")
 
         augmentations = [None]
         if augment_images:
@@ -700,7 +683,7 @@ class ValidationDatasetEvaluator:
                     batch_images = original_batch_images.copy()
 
                     if aug is not None:
-                        batch_images = aug(batch_images)
+                        batch_images = self.augmenter.augment_video(video=batch_images, augmenters=[aug])
 
                     # Add batch dimension.
                     batch_images = batch_images[None, :, :, :]
@@ -730,7 +713,7 @@ class ValidationDatasetEvaluator:
         return sample_images, embeddings, labels
 
     def plot_embeddings(self, sample_images, embeddings, labels, **kwargs):
-        print("ValidationDatasetEvaluator.plot_embeddings()")
+        #print("ValidationDatasetEvaluator.plot_embeddings()")
 
         from bb_wdd_filter.visualization import plot_embeddings
 
@@ -744,7 +727,7 @@ class ValidationDatasetEvaluator:
         )
 
     def calculate_scores(self, embeddings, labels):
-        print("ValidationDatasetEvaluator.calculate_scores()")
+        #print("ValidationDatasetEvaluator.calculate_scores()")
 
         import sklearn.linear_model
         import sklearn.preprocessing
@@ -788,7 +771,7 @@ class ValidationDatasetEvaluator:
         return scores
 
     def evaluate(self, model, embed_kwargs={}, plot_kwargs={}):
-        print("ValidationDatasetEvaluator.evaluate()")
+        #print("ValidationDatasetEvaluator.evaluate()")
 
         images, embeddings, labels = self.get_images_and_embeddings(
             model, **embed_kwargs
@@ -809,7 +792,7 @@ class SupervisedDataset:
         images_in_archives=False,
         **kwargs,
     ):
-        print("SupervisedDataset.__init__()")
+        #print("SupervisedDataset.__init__()")
 
         self.gt_data_df, self.paths = ValidationDatasetEvaluator.load_ground_truth_data(
             gt_paths, remap_paths_to=remap_paths_to
@@ -832,12 +815,12 @@ class SupervisedDataset:
         self.Y = np.array([label_mapper[l] for l in labels])
 
     def __len__(self):
-        print("SupervisedDataset.__len__()")
+        #print("SupervisedDataset.__len__()")
 
         return len(self.paths)
 
     def __getitem__(self, i, **kwargs):
-        print("SupervisedDataset.__getitem__()")
+        #print("SupervisedDataset.__getitem__()")
 
         images, vector, duration = self.dataset.__getitem__(i, **kwargs)
         label = self.Y[i]
@@ -860,7 +843,7 @@ class SupervisedValidationDatasetEvaluator:
         default_image_scale=0.25,
         class_labels=["other", "waggle", "ventilating", "activating"]
     ):
-        print("SupervisedValidationDatasetEvaluator.__init__()")
+        # print("SupervisedValidationDatasetEvaluator.__init__()")
 
         self.dataset = SupervisedDataset(
             gt_data_path,
@@ -876,12 +859,12 @@ class SupervisedValidationDatasetEvaluator:
         self.class_labels = class_labels
 
     def __len__(self):
-        print("SupervisedValidationDatasetEvaluator.__len__()")
+        #print("SupervisedValidationDatasetEvaluator.__len__()")
 
         return len(self.dataset)
 
     def __getitem__(self, i):
-        print("SupervisedValidationDatasetEvaluator.__getitem__()")
+        #print("SupervisedValidationDatasetEvaluator.__getitem__()")
 
         item = self.dataset.__getitem__(
             i, normalize_to_float=True, return_center_images=True
@@ -892,7 +875,7 @@ class SupervisedValidationDatasetEvaluator:
         return item
 
     def evaluate(self, model, plot_kwargs=dict()):
-        print("SupervisedValidationDatasetEvaluator.evaluate()")
+        #print("SupervisedValidationDatasetEvaluator.evaluate()")
 
         dataloader = torch.utils.data.DataLoader(
             self, num_workers=0, batch_size=16, shuffle=False, drop_last=False
@@ -986,15 +969,15 @@ class SupervisedValidationDatasetEvaluator:
 
 class WDDDatasetWithIndicesAndNormalized:
     def __init__(self, dataset):
-        print("WDDDatasetWithIndicesAndNormalized.__init__()")
+        #print("WDDDatasetWithIndicesAndNormalized.__init__()")
         self.dataset = dataset
 
     def __len__(self):
-        print("WDDDatasetWithIndicesAndNormalized.__len__()")
+        #print("WDDDatasetWithIndicesAndNormalized.__len__()")
         return len(self.dataset)
 
     def __getitem__(self, i):
-        print("WDDDatasetWithIndicesAndNormalized.__getitem__()")
+        #print("WDDDatasetWithIndicesAndNormalized.__getitem__()")
 
         item = self.dataset.__getitem__(
             i,
